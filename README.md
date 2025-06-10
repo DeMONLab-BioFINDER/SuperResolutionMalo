@@ -28,6 +28,11 @@ If you your computer does not have access to the internet, you must download the
 
 Create a folder results/trialX/images and indicate which number X is in func/training/LoadingModel.py
 
+First, run "source scirpts/processing_pipeline.sh" to process the data
+
+Then run "source scirpts/lauching_training.sh" to do the training
+
+You can the infere using "source scirpts/inference_pipeline.sh", if you have unprocessed 3T images that do not have an associated 7T image, uncomment the script and include the path of the reference affine registration and associated reference image.
 
 # FYI
 The functions in func/WarvitoCodes are a modified version of code found on https://huggingface.co/spaces/Warvito/diffusion_brain/tree/main
