@@ -32,3 +32,5 @@ Create a folder results/trialX/images and indicate which number X is in func/tra
 # FYI
 The functions in func/WarvitoCodes are a modified version of code found on https://huggingface.co/spaces/Warvito/diffusion_brain/tree/main
 
+The code for the WGAN-GP comes from https://github.com/eriklindernoren/Keras-GAN
+
