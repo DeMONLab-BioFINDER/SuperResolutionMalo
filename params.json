@@ -1,0 +1,11 @@
+{
+ "test_size" : 1,
+ "train_size" : 7,
+ "slice_dim":1,
+ "d1":256,"d2":304,"d3":308,
+ "path_data": "data/UNC/",
+ "path_inference": "data/UNC_inference/",
+ "path_res": "",
+ "path_patient_info": "data/UNC/participants.csv",
+ "path_inference_info": "data/UNC/participants.csv"
+ }

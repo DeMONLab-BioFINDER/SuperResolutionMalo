@@ -15,44 +15,45 @@ import time
 from torch.optim.lr_scheduler import StepLR,ReduceLROnPlateau
 from skimage.metrics import peak_signal_noise_ratio,structural_similarity
 from medicalnet_models.models.resnet import medicalnet_resnet10_23datasets,medicalnet_resnet50_23datasets
+import json
 
 tc = time.time()
 
 
-n_trial = 9 #create a folder "results" with folders "triali" where i=n_trial to save loss curves, "params.txt"  saves the settings
+n_trial = 3 #create a folder "results" with folders "triali" where i=n_trial to save loss curves, "params.txt"  saves the settings
 
 print(torch.cuda.device_count(),n_trial)
 
-RAM_opti = True #Use it if you don't have enough RAM -- calculates the losses on the cpu
+RAM_opti = False #Use it if you don't have enough RAM -- calculates the losses on the cpu
 
 retrain = False #use if want to resume a training, please indicate the path below :
 if retrain:
     path_old_model = "models/my_unet.pt"
 
 settings = {
-"n_epochs" : 2, 
+"n_epochs" : 1, 
 
-"n_channels" : 64, #number of channels after the initial convolution
-"num_groups" : 16, #size of batch in the group normalization
+"n_channels" : 128, #number of channels after initial convolution
+"num_groups" : 16, #size of batch in batch normalization
 
 "use_mid_attention" : True, #Self attention at the middle of the Unet, can take a lot of RAM if the image is big at the bottleneck
-"n_res_block" : 3, #Number of res blocks in each stage of the U net
-"channel_mult" : (1,2,2,2), # the length of this tuple indicates the number of downsample op, the value by which model_channels is multiplied 
+"n_res_block" : 2, #Number of res blocks in each stage of the U net
+"channel_mult" : (1,2,2), # the length of this tuple indicates the number of downsample op, the value by which model_channels is multiplied 
                         # at the current stage 
 "attention_res" : [4,8], #Indicate at which channel multiplication to include a cross attention layer, if empty then no cross attention. Can take a lot of RAM if used in high stages. 
 
-"size_batch" : 16, 
-"num_workers" : 4, 
-"n_in_slices" : 3,  #Number of input slices/channels, default is 1.
+"size_batch" : 8, #reduce for RAM limitations, increase for less noise
+"num_workers" : 4, #number of threads used, divides size_batch
+"n_in_slices" : 3,  #Number of slices in the input, default is 1.
 
-"lr" : 1e-4, #initial learning rate 
+"lr" : 5e-5, #initial learning rate 
 "scheduler" :  "reducePlateau", #None, "decay" or "reducePlateau"
-"decay" : (300,0.8), #learning rate decay
+"decay" : (300,0.5), #learning rate decay
 "betas" : (0.9, 0.999), #betas of the optimizer, beta1=0.9 nice for sparse gradients
 "dropout" : 0, # not good for SR 
 
 "conditions" : ["Sex","Age","Diagnostic","position"],
-"block_method" : "slices",  #"slices" is the only option
+"block_method" : "slices",  #"slices" is the only option, need to coregister the images
 "normalization_method" : "min_max", #"std_mean" or "min_max", min_max is required if percetual loss
 "clip" : (1,99), #None or tuple of 2 percentiles (recommandation : (1,99)
 
@@ -66,12 +67,12 @@ settings = {
 "use_initial_down" : False, #use if the image is too big -- replaces initial conv by a downsampling conv, adds upsampling before the last layer
 "use_perceptual_loss" : True,
 "perceptual_network_type" : "radimagenet_resnet50", #"medicalnet_resnet10_23datasets" or "medicalnet_resnet50_23datasets" for 3D , radimagenet_resnet50 for 2D
-"use_gan" : False, #Unused
+"use_gan" : False, #Not implemented yet
 "use_ada" : True, #Layer used to reduce the flaws of batch normalization in SR -- sharpens the edges
-"perceptual_weight" : 0.01, #weight of the perceptual weight
+"perceptual_weight" : 0.005, #weight of the perceptual weight
 "warm_up": False,
 
-"padding" : None, #How to padd the input, if None the padding will be as small as possible
+"padding" : None, #How to padd the input, of None the padding will be as small as possible
 "n_background" : 0, #not used
 "opti_generator" : "adam", #Can only be adam right now
 "opti_discriminator" : None, #Used only with a GAN
@@ -100,9 +101,9 @@ parent_7T = big_path + "T1_7T_processed/"
 parent_3T = big_path + "jake__20240405_172444___t1___brain___fs/processed_reg/"
 
 
-idx_7T = "7T_015_BioFINDER_" 
+idx_7T = "7T_015_BioFINDER_"
 
-info = pd.read_csv(big_path+"patient_info.csv") #patient variables
+info = pd.read_csv(big_path+"patient_info.csv")
 
 n_test = settings["test_size"]
 n_train = settings["train_size"]
@@ -116,7 +117,7 @@ if retrain:
 elif settings["warm_up"]:
     checkpoint = torch.load(big_path+"Unet/resultsUNC/trial2/my_unet.pt")
 
-#Select the train and test sets
+
 i_missing = [203,204,223,248,274,288,300]+[184,192]
 
 idx_test = np.sort(np.random.choice(136,13,replace=False))
@@ -131,7 +132,7 @@ step_test = 0
 step_train = 0
 i_subj = 126
 patient_test_idx = []
-#Selects the conditions
+
 bots_test = []
 for i in range(136):
     if i in idx_test:
@@ -157,8 +158,7 @@ for i in range(136):
     i_subj+=1
     while i_subj in i_missing:
         i_subj+=1
-
-#Gets the data
+        
 idx_slices_train = idx_slices_train[:,1:]     
 
 idx_slices_test = idx_slices_test[0].astype(int)
@@ -167,14 +167,12 @@ idx_slices_train = idx_slices_train[0].astype(int)
 print(idx_slices_test[:250],idx_slices_train[:250])
 
 for i in idx_slices_test:
-    if i in idx_slices_train:
-        print("plantage")
+	if i in idx_slices_train:
+		print("plantage")
 
 n_d1,n_d2 = settings["slice_size"]
 d_slice = settings["slice_dim"]
 n_colors = settings["n_in_slices"]
-
-#Now we get the right input, context and output slices from the npy slices generated by  pickling.py
 
 contexts = np.load(big_path+"Unet/contents/contexts.npy")
 contexts_test = torch.from_numpy(contexts[idx_slices_test]).float()
@@ -186,7 +184,7 @@ l = []
 for i in range(136):
     if not(i in idx_test):
         l.append(i)
-        
+		
 idx_train = np.array(l)
 
 ranges = np.load(big_path+"Unet/contents/ranges.npy")
@@ -199,6 +197,7 @@ del contexts
 del ranges
 
 
+#inputs, ground truth
 
 hd_test = []
 af_test = []
@@ -206,8 +205,6 @@ af_test = []
 test_subj_list=[]
 
 stepper = 0
-#Getting the affine and header for synthetic image saving purposes
-
 for i in range(126,305):
     info_i = info.loc[info["7T_idx"]==idx_7T+str(i)]
     if i not in i_missing and info_i["usage"].iloc[0]=="train":
@@ -232,8 +229,6 @@ df_name_test.to_csv("results/trial"+str(n_trial)+"/test_patients.csv",index=Fals
 
 
 del I3T
-
-#Now we get the right input, context and output slices from the npy files generated by ano.py
 
 if n_colors==1:
     x = np.load(big_path+"Unet/contents/inputs.npy")
@@ -311,7 +306,7 @@ my_unet = nn.DataParallel(my_unet)
 if retrain:
     my_unet.load_state_dict(checkpoint["model_state_dict"])
 elif settings["warm_up"]:
-    my_unet.load_state_dict(checkpoint["model_state_dict"])
+   my_unet.load_state_dict(checkpoint["model_state_dict"])
 
 my_unet.cuda()
 
@@ -406,7 +401,10 @@ for epoch in range(n_epochs):
         tac = time.time()
         in_img,out_img,context = batch
         
-        
+        #if step==0:
+        #    np.save("in_img.npy",in_img.numpy())
+        #    np.save("out_img.npy",out_img.numpy())
+        #break
         
         sb,_,_,_ = in_img.shape
         
@@ -451,7 +449,7 @@ for epoch in range(n_epochs):
             
 
         if np.isnan(rl):
-            print("Nan, reduce learning rate")
+            print("NANANANANANANANANANNAN")
             break
 
         toutou.append(rl)
@@ -526,7 +524,7 @@ for epoch in range(n_epochs):
                         saved_res[location//n_slices,((location)%n_slices):((location)%n_slices)+jj] = recons_t[:jj,0,r1//2:-(r1//2+r1%2),r2//2:-(r2//2+r2%2)]
                         if jj<sb and jj>0:
                             saved_res[location//n_slices+1,:(sb-jj)] = recons_t[jj:,0,r1//2:-(r1//2+r1%2),r2//2:-(r2//2+r2%2)]
-                    elif r1!=0:            
+                    elif r1!=0:			
                         saved_res[location//n_slices,((location)%n_slices):((location)%n_slices)+jj] = recons_t[:jj,0,r1//2:-(r1//2+r1%2),:]
                         if jj<sb and jj>0:
                             saved_res[location//n_slices+1,:(sb-jj)] = recons_t[jj:,0,r1//2:-(r1//2+r1%2),:]                
@@ -574,7 +572,7 @@ for epoch in range(n_epochs):
                     #print("Shapes : ", f_true.shape,f_gen.shape)
                     
                          
-                    range_data = 1
+                    range_data = ranges_test[i_test]
                 
                     psnr_test.append(peak_signal_noise_ratio(I_t.numpy(),res_i_test.numpy(),data_range=range_data))
                     ssim_test.append(structural_similarity(I_t.numpy(),res_i_test.numpy(),data_range=range_data))
@@ -590,7 +588,7 @@ for epoch in range(n_epochs):
                     #print("Shapes 2 : ", f_true.shape,f_gen.shape)
                     #exit()
                 
-                    range_data = 1
+                    range_data = (torch.max(f_true)).item()
                 
                     psnr_no_corrupt_test.append(peak_signal_noise_ratio(f_true.numpy(),f_gen.numpy(),data_range=range_data))
                     ssim_no_corrupt_test.append(structural_similarity(f_true.numpy(),f_gen.numpy(),data_range=range_data))
@@ -654,7 +652,8 @@ for epoch in range(n_epochs):
             epoch_loss = 0
             epoch_perc_loss = 0
           
-        
+print(iii)
+
 with open("results/trial"+str(n_trial)+"/training_time.txt", 'w') as f:
     f.write(str(time.time()-tic))
 
