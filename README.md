@@ -2,7 +2,7 @@
 Super resolution U-Net that were used to go from 3T to 7T brain MRI. 
 
 # Settings 
-Change your paths and parameters in "params.json
+Change your paths and parameters in "params.json"
 
 # conda env 
 To create the venv do :
