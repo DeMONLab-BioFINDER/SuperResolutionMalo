@@ -113,7 +113,7 @@ for patient in paths:
 
     #Load the image
     Img3T = nib.load(path+patient).get_fdata()
-    Img7T = nib.load(path+patient.replace("/3T/","/7T/")).get_fdata()
+    Img7T = nib.load((path+patient).replace("/3T/","/7T/")).get_fdata()
 
     Img7T = np.multiply(Img7T,(Img3T!=0))
     
