@@ -13,6 +13,9 @@ conda activate SR_env
 
 pip install numpy matplotlib einops nibabel lpips monai torch scikit-image pandas gdown 
 
+# Data
+Create a data/<Name of your dataset> folder, 
+
 
 # Preprocessing
 A preprocessing pipeline is included as an exemple, you need a venv with ANTs and freesurfer v7.3.0 or later.
