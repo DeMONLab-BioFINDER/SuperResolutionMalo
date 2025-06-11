@@ -32,7 +32,7 @@ for patient in paths:
         
           
         im = nib.load(path+patient).get_fdata()
-        im2 =  nib.load(path+patient.replace("/infered/","/7T/")).get_fdata()
+        im2 =  nib.load((path+patient).replace("/infered/","/7T/")).get_fdata()
         
         v3T = im2.flatten()
         v3T = v3T[v3T>0]

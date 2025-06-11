@@ -240,7 +240,6 @@ def InfSubj(path_model,path_settings,ref_out):
             ress = torch.transpose(torch.transpose(ress,0,1),1,2)
 
 
-        print(subj.replace(".nii.gz",ref_out+".nii.gz").replace("/3T/","/infered/"))
         nib.save(nib.Nifti1Image(ress, af, header=hd),(path+subj.replace(".nii.gz",ref_out+".nii.gz")).replace("/3T/","/infered/"))
         print(time.time()-toc)
 
