@@ -39,7 +39,7 @@ Then run "source scirpts/lauching_training.sh" to do the training
 
 You can the infere using "source scirpts/inference_pipeline.sh", if you have unprocessed 3T images that do not have an associated 7T image, uncomment the script and include the path of the reference affine registration and associated reference image.
 
-# FYI
+# Acknoledgements
 The functions in func/WarvitoCodes are a modified version of code found on https://huggingface.co/spaces/Warvito/diffusion_brain/tree/main
 
 The code for the WGAN-GP comes from https://github.com/eriklindernoren/Keras-GAN
