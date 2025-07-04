@@ -3,6 +3,7 @@ Super resolution U-Net that were used to go from 3T to 7T brain MRI.
 
 # Settings 
 Change your paths and parameters in "params.json"
+Change the models parameters at the beginning of the file func/training/LoadingModel.py
 
 # conda env 
 To create the venv do :
@@ -13,8 +14,9 @@ conda activate SR_env
 
 pip install numpy matplotlib einops nibabel lpips monai torch scikit-image pandas gdown 
 
+
 # Data
-Create a data/<Name of your dataset> folder, 
+Create a data/<Name of your dataset> folder, with the subfolders data/<Name of your dataset>/3T and data/<Name of your dataset>/7T
 
 
 # Preprocessing
