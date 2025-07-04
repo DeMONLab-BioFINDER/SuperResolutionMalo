@@ -16,7 +16,7 @@ pip install numpy matplotlib einops nibabel lpips monai torch scikit-image panda
 
 
 # Data
-Create a data/<Name of your dataset> folder, with the subfolders data/<Name of your dataset>/3T and data/<Name of your dataset>/7T
+Create a data/DATASETNAME folder, with the subfolders data/DATASETNAME/3T and data/DATASETNAME/7T
 
 
 # Preprocessing
