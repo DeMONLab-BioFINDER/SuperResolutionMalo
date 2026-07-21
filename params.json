@@ -1,11 +1,13 @@
 {
- "test_size" : 1,
- "train_size" : 7,
+ "infere_mode" : "False",
+ "batch_size_inference":4,
+ "test_size" : 2,
+ "train_size" : 8,
  "slice_dim":1,
- "d1":256,"d2":304,"d3":308,
+ "n_neighboors":3,
+ "d1":304,"d2":304,"d3":308,
  "path_data": "data/UNC/",
- "path_inference": "data/UNC_inference/",
- "path_res": "",
  "path_patient_info": "data/UNC/participants.csv",
- "path_inference_info": "data/UNC/participants.csv"
+ "path_inference_model":"models/my_unetGanNoDiag.pt",
+  "path_inference_model_params":"models/paramsGanNoDiag.txt"
  }

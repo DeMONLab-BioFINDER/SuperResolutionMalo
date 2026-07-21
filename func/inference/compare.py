@@ -10,6 +10,7 @@ import pandas as pd
 from skimage.metrics import peak_signal_noise_ratio,structural_similarity
 import json
 import os
+import glob
 
 with open('params.json', 'r') as file:
     params_meth = json.load(file)
@@ -20,60 +21,66 @@ model10 = PerceptualLoss(spatial_dims=3,is_fake_3d=False, network_type="medicaln
 model50 = PerceptualLoss(spatial_dims=3,is_fake_3d=False, network_type="medicalnet_resnet50_23datasets")
 
 
-path = params_meth["path_inference"]+"processed/infered/"
+path = params_meth["path_data"]+"processed/infered/"
 
-paths = os.listdir(path)
-info = pd.read_csv(params_meth["path_inference_info"])
+
+
+path = params_meth[sys.argv[1]]+"processed/3T/"
+
+paths = glob.glob(os.path.join(path, "*", "*registered.nii.gz"))
+info = pd.read_csv(params_meth["path_patient_info"])
 
 for patient in paths:
-    id_p = patient.split("/")[-1][:6]
+    id_p = patient.split("/")[-2]
     
-    if patient[-7:]==".nii.gz":
-        
-          
-        im = nib.load(path+patient).get_fdata()
-        im2 =  nib.load((path+patient).replace("/infered/","/7T/")).get_fdata()
-        
-        v3T = im2.flatten()
-        v3T = v3T[v3T>0]
-        
-        pmax3T = np.percentile(v3T, 99)
-        pmin3T = np.percentile(v3T, 1)
-        
-        v3T = np.clip(im2,pmin3T,pmax3T)
+      
+    im = nib.load(patient).get_fdata()
     
-        vmin3T = np.min(v3T)
-        vmax3T = np.max(v3T)
-        im2 = (im2-vmin3T)/(vmax3T-vmin3T)
+    path_7T = patient.replace("/infered/","/7T/")
+    path_7T = path_7T.replace("_registered.nii.gz",".nii.gz")
     
-        df["perc_10"].append(model10(torch.from_numpy(im)[None,None,:,:,:].float(),torch.from_numpy(im2)[None,None,:,:,:].float()).item())
-        df["perc_50"].append(model50(torch.from_numpy(im)[None,None,:,:,:].float(),torch.from_numpy(im2)[None,None,:,:,:].float()).item())
-        
-        df["psnr"].append(peak_signal_noise_ratio(im2,im,data_range=1))
-        df["ssim"].append(structural_similarity(im2,im,data_range=1))
-        df["patient"].append(id_p)
-        
-        f_true = im2.flatten()
-        f_gen = im.flatten()
-        f_gen = f_gen[f_true>0]
-        print(len(f_gen)/len(f_true))
-        f_true = f_true[f_true>0]
+    im2 =  nib.load(path_7T).get_fdata()
+    
+    v3T = im2.flatten()
+    v3T = v3T[v3T>0]
+    
+    pmax3T = np.percentile(v3T, 99)
+    pmin3T = np.percentile(v3T, 1)
+    
+    v3T = np.clip(im2,pmin3T,pmax3T)
 
-        df["psnr_brain"].append(peak_signal_noise_ratio(f_true,f_gen,data_range=1))
-        df["ssim_brain"].append(structural_similarity(f_true,f_gen,data_range=1))
-        
-        shifting = info.loc[info["ID"]==id_p,"corruption"].iloc[0]
-        
-        ress_s = im[:,shifting:,:]
-        im2_s = im2[:,shifting:,:]
-        
-        f_true = im2_s.flatten()
-        f_gen = ress_s.flatten()
-        f_gen = f_gen[f_true>0]
-        f_true = f_true[f_true>0]
+    vmin3T = np.min(v3T)
+    vmax3T = np.max(v3T)
+    im2 = (im2-vmin3T)/(vmax3T-vmin3T)
+
+    df["perc_10"].append(model10(torch.from_numpy(im)[None,None,:,:,:].float(),torch.from_numpy(im2)[None,None,:,:,:].float()).item())
+    df["perc_50"].append(model50(torch.from_numpy(im)[None,None,:,:,:].float(),torch.from_numpy(im2)[None,None,:,:,:].float()).item())
     
-        df["psnr_no_corrupt"].append(peak_signal_noise_ratio(f_true,f_gen,data_range=1))
-        df["ssim_no_corrupt"].append(structural_similarity(f_true,f_gen,data_range=1))
+    df["psnr"].append(peak_signal_noise_ratio(im2,im,data_range=1))
+    df["ssim"].append(structural_similarity(im2,im,data_range=1))
+    df["patient"].append(id_p)
+    
+    f_true = im2.flatten()
+    f_gen = im.flatten()
+    f_gen = f_gen[f_true>0]
+    print(len(f_gen)/len(f_true))
+    f_true = f_true[f_true>0]
+
+    df["psnr_brain"].append(peak_signal_noise_ratio(f_true,f_gen,data_range=1))
+    df["ssim_brain"].append(structural_similarity(f_true,f_gen,data_range=1))
+    
+    shifting = info.loc[info["ID"]==id_p,"corruption"].iloc[0]
+    
+    ress_s = im[:,shifting:,:]
+    im2_s = im2[:,shifting:,:]
+    
+    f_true = im2_s.flatten()
+    f_gen = ress_s.flatten()
+    f_gen = f_gen[f_true>0]
+    f_true = f_true[f_true>0]
+
+    df["psnr_no_corrupt"].append(peak_signal_noise_ratio(f_true,f_gen,data_range=1))
+    df["ssim_no_corrupt"].append(structural_similarity(f_true,f_gen,data_range=1))
 
 
 df["psnr"].append(np.mean(np.array(df["psnr"])))

@@ -1,7 +1,10 @@
 #!/bin/bash -l
 
 #source script/processing_pipeline.bash
+i=$1
 
-python func/training/LoadingModel.py
+mkdir -p results/trial$i/images
+
+python func/training/LoadingModel.py $i
 
 echo "done"

@@ -17,7 +17,7 @@ import pandas as pd
 from torch.utils.data import DataLoader
 import json
 import ast
-
+import glob
 from datetime import datetime
 
 
@@ -68,7 +68,6 @@ def brain_location(im):
 
 
 def InfSubj(path_model,path_settings,ref_out):
-    batch_size = 12
     
     with open(path_settings) as f:
         a = f.read().replace("\'","\"")
@@ -77,8 +76,10 @@ def InfSubj(path_model,path_settings,ref_out):
     #path to the input and output images
     with open('params.json', 'r') as file:
         params_meth = json.load(file)
-    
-    info =  pd.read_csv(params_meth["path_inference_info"])
+        
+    batch_size = params_meth["batch_size_inference"]
+
+    info =  pd.read_csv(params_meth["path_patient_info"])
     ds = [int(params_meth["d1"]), int(params_meth["d2"]), int(params_meth["d3"])]
 
     d_slice = params_meth["slice_dim"]
@@ -94,7 +95,7 @@ def InfSubj(path_model,path_settings,ref_out):
     else:
         n_d1,n_d2 = ds[0],ds[1]
     
-    
+    print("Using ",path_model, os.path.isfile(path_model))
     checkpoint = torch.load(path_model,weights_only=False)
     my_unet = UNetModel(image_size = (n_d1,n_d2), in_channels = n_colors, out_channels = 1, model_channels = settings["n_channels"],
                                num_res_blocks = settings["n_res_block"], attention_resolutions = settings["attention_res"], 
@@ -117,15 +118,15 @@ def InfSubj(path_model,path_settings,ref_out):
     
     #Calculates the number of downsamples
     n_down = len(settings["channel_mult"])-1+int(settings["use_initial_down"])
-
+    print(n_down)
     #The last dimensions of x,y need to be divisible by 2^(n_down) where n_d is the number of downsamples
     padder = None
 
     
-    path = params_meth["path_inference"]+"processed/7T/"
-    paths = os.listdir(path)
+    path = params_meth["path_data"]+"processed/3T/"
+    paths = glob.glob(os.path.join(path, "*", "*registered.nii.gz"))
     for subj in paths:
-        id_p = subj.split("/")[-1][:6]        
+        id_p = subj.split("/")[-2]
     
         print(subj)
         
@@ -133,7 +134,7 @@ def InfSubj(path_model,path_settings,ref_out):
         age = info_i["Age"]
         info_sex = info_i["Sex"]
         
-        im = nib.load(path+subj)
+        im = nib.load(subj)
 
         hd = im.header
         af = im.affine
@@ -147,27 +148,58 @@ def InfSubj(path_model,path_settings,ref_out):
             mid = (kk+k)/2
         
         print("brain loca ",brain_location(im),mid)
+        a,b,c = im.shape
+        print(im.shape)
+
+
+        orig_shape = im.shape          # (a, b, c) before crop
+        i0, i1_end = max(i-3, 0), min(ii+3, a)
+        j0, j1_end = max(j-3, 0), min(jj+3, b)
+        k0, k1_end = max(k-3, 0), min(kk+3, c)
+        
+        im = im[i0:i1_end, j0:j1_end, k0:k1_end]
+
+        print(im.shape)
+
         
         
+        if params_meth["slice_dim"]==0:
+            n_d1,n_d2,n_d3 = ds[1],ds[2],ds[0]
+            i1,i2,i3       =    1,    2,    0 
+        elif params_meth["slice_dim"]==1:
+            n_d1,n_d2,n_d3 = ds[0],ds[2],ds[1]
+            i1,i2,i3       =    0,    2,    1 
+        else:
+            n_d1,n_d2,n_d3 = ds[0],ds[1],ds[2]
+            i1,i2,i3       =    0,    1,    2 
+                
+        
+        pad_h = max(n_d1 - im.shape[i1], 0)
+        pad_w = max(n_d2 - im.shape[i2], 0)
+        pad_l = max(n_d3 - im.shape[i3], 0)
+        cropped_shape = (i1_end - i0, j1_end - j0, k1_end - k0)
+        if pad_h > 0 or pad_w > 0 or pad_l>0:
+            pad_width = [(0, 0)] * im.ndim
+            pad_width[i1] = (0, pad_h)
+            pad_width[i2] = (0, pad_w)
+            pad_width[i3] = (0, pad_l)
+            im = np.pad(im, pad_width, mode='constant')
+        print(im.shape,pad_width)
+
         if d_slice==1:
             im = np.transpose(im,(1,0,2))
         elif d_slice==2:
             im = np.transpose(im,(2,0,1))
-        
+
+
         im = np.concatenate((im[:-2,None,:,:],im[1:-1,None,:,:],im[2:,None,:,:]),axis=1)
-        print(im.shape)
+
+
         num_inputs,_,_,_ =  im.shape
+
+
         x = torch.from_numpy(im)
 
-        del im
-        
-        if d_slice==0:
-            n_d1,n_d2 = ds[1],ds[2]
-        elif d_slice==1:
-            n_d1,n_d2 = ds[0],ds[2]
-        else:
-            n_d1,n_d2 = ds[0],ds[1]
-            
         #Automatic padding
         if padder is None :
             if n_d1%(2**n_down):
@@ -233,14 +265,27 @@ def InfSubj(path_model,path_settings,ref_out):
                     ress[(num_inputs//batch_size)*batch_size:] = res_i[:,0,:,r2//2:-(r2//2+r2%2)]            
                 else:
                     ress[(num_inputs//batch_size)*batch_size:] = res_i[:,0,:,:]   
-                        
+        
+        
+        ress_full = torch.zeros(n_d3, n_d1, n_d2, dtype=ress.dtype)
+        ress_full[1:-1] = ress
+        ress = ress_full
+        
         if d_slice==1:
             ress = torch.transpose(ress,0,1)
         elif d_slice==2:
             ress = torch.transpose(torch.transpose(ress,0,1),1,2)
+        ress = torch.Tensor.numpy(ress)
+                
+        ress = ress[0:cropped_shape[0], 0:cropped_shape[1], 0:cropped_shape[2]]        
 
-
-        nib.save(nib.Nifti1Image(ress, af, header=hd),(path+subj.replace(".nii.gz",ref_out+".nii.gz")).replace("/3T/","/infered/"))
+        ress_padded = np.zeros(orig_shape, dtype=ress.dtype)
+        ress_padded[i0:i1_end, j0:j1_end, k0:k1_end] = ress
+        
+        print("after restoring crop:", ress_padded.shape)
+        out_path = (subj.replace(".nii.gz", ref_out + ".nii.gz")).replace("/3T/", "/infered/")
+        os.makedirs(os.path.dirname(out_path), exist_ok=True)
+        nib.save(nib.Nifti1Image(ress_padded, af, header=hd), out_path)
         print(time.time()-toc)
 
 

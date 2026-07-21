@@ -1,0 +1,1 @@
+{'n_crit': 5, 'lr': 0.0002, 'gan_weight': 0.1, 'n_channels': 256, 'num_layers_d': 5, 'gp_weight': 10, 'wgp': True}

@@ -22,18 +22,23 @@ from skimage.metrics import peak_signal_noise_ratio,structural_similarity
 from generative.networks.nets import PatchDiscriminator
 import json
 import os
+import sys
+import glob
 
 tc = time.time()
 
-n_trial = 2 #create a folder "results" with folders "triali" where i=n_trial to save loss curves, "params.txt"  saves the settings
+n_trial = sys.argv[1] #create a folder "results" with folders "triali" where i=n_trial to save loss curves, "params.txt"  saves the settings
 
 use_GAN = False
 
 RAM_opti = False #Use it if you don't have enough RAM -- calculates the losses on the cpu. It slows down the training.
 
+with open('params.json', 'r') as file:
+    params_meth = json.load(file)
+    
 retrain = False #use if want to resume a training, please indicate the path below :
 if retrain:
-    path_old_model = "models/my_unet.pt"
+    path_old_model = params_meth["path_inference_model"]
 
 settings = {
 "n_epochs" : 1,
@@ -114,9 +119,6 @@ with open("results/trial"+str(n_trial)+"/paramsGAN.txt", 'w') as f:
 
 
 
-with open('params.json', 'r') as file:
-    params_meth = json.load(file)
-    
 ds = [int(params_meth["d1"]), int(params_meth["d2"]), int(params_meth["d3"])]
 
 
@@ -150,13 +152,15 @@ idx_slices_test = np.zeros((1,n_test*n_slices))
 step_test = 0
 step_train = 0
 
-path = params_meth["path_data"]+"processed/7T/"
-paths = os.listdir(path)
+path = params_meth["path_data"]+"processed/3T/"
+
+paths = glob.glob(os.path.join(path, "*", "*registered.nii.gz"))
 
 bots_test = [] #To remove any corrpution (to fix)
 i=0
 for patient in paths:
-    id_p = patient.split("/")[-1][:6]
+    print(patient)
+    id_p = patient.split("/")[-2]
     if i in idx_test:
         idx_slices_test[0,step_test*n_slices:(step_test+1)*n_slices] = np.arange(i*n_slices,(i+1)*n_slices)
         step_test += 1
@@ -165,12 +169,12 @@ for patient in paths:
 
     else :
         
-        top1 = info.loc[info["ID"]==id_p,"top_"+str(d_slice)].iloc[0]
-        bot1 = info.loc[info["ID"]==id_p,"bot_"+str(d_slice)].iloc[0]
+        top1 = int(info.loc[info["ID"]==id_p,"top_"+str(d_slice)].iloc[0])
+        bot1 = int(info.loc[info["ID"]==id_p,"bot_"+str(d_slice)].iloc[0])
 
-        bot_c = info.loc[info["ID"]==id_p,"corruption"].iloc[0]
+        bot_c = int(info.loc[info["ID"]==id_p,"corruption"].iloc[0])
         
-        bot1 = max(bot1,bot_c)
+        bot1 = int(max(bot1,bot_c))
         
         idx_slices_train_i = np.zeros((1,top1-n_slices+n_slices-bot1))
         
@@ -226,7 +230,7 @@ af_test = []
 i = 0
 for patient in paths:
     if i in idx_test:
-        I3T = nib.load(path+patient)
+        I3T = nib.load(patient)
             
         hd_test.append(I3T.header)
         af_test.append(I3T.affine)
@@ -244,11 +248,11 @@ x = np.load(params_meth["path_data"]+"npy_files/inputs"+str(n_colors)+".npy")
 x_test = torch.from_numpy(x[idx_slices_test]).float()
 x_train = torch.from_numpy(x[idx_slices_train]).float()
 
-print("Shape of the dataset : ",x.shape)
+print("Shape of the 3T dataset : ",x.shape)
 
-print("Shape of the test dataset : ",x_test.shape)
+print("Shape of the 3T test dataset : ",x_test.shape)
 
-print("Shape of the train dataset : ",x_train.shape)
+print("Shape of the 3T train dataset : ",x_train.shape)
 
 del x
 
@@ -257,11 +261,11 @@ y_test_no_padd = torch.from_numpy(y[idx_slices_test]).float()
 y_train = torch.from_numpy(y[idx_slices_train]).float()
 
 
-print("Shape of the dataset : ",y.shape)
+print("Shape of the 7T dataset : ",y.shape)
 
-print("Shape of the test dataset : ",y_test_no_padd.shape)
+print("Shape of the 7T test dataset : ",y_test_no_padd.shape)
 
-print("Shape of the train dataset : ",y_train.shape)
+print("Shape of the 7T train dataset : ",y_train.shape)
 
 del y
 

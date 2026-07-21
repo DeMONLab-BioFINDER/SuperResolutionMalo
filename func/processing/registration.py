@@ -14,11 +14,23 @@ def reg(path,path_out):
         
     I3T = ants.image_read(path)
     path2 = path.replace("/3T/","/7T/")
-    I7T = ants.image_read(path2)
-    reg = ants.registration(fixed=I7T,moving=I3T)
-    
+    if not(os.path.isfile(path2)):
+        path_ref="models/template_3T_to_7T.mat"
+        path_ref_3T="models/template_3T.nii.gz"
+        path_ref_7T="models/template_7T.nii.gz"
+        
+        template_I3T = ants.image_read(path_ref_3T)
+        reg = ants.registration(fixed=template_I3T,moving=I3T,type_of_transform="Rigid")
+
+        I7T = ants.image_read(path_ref_7T)
+        I_moved = reg["warpedmovout"]
+        I_moved = ants.apply_transforms(fixed=I7T,moving=I_moved,transformlist=[path_ref])
+    else:
+        I7T = ants.image_read(path2)
+        reg = ants.registration(fixed=I7T,moving=I3T)
+        I_moved = reg["warpedmovout"]
     print("success !")
-    I_moved = reg["warpedmovout"]
+    
     
     ants.image_write(I_moved,path_out)
     
