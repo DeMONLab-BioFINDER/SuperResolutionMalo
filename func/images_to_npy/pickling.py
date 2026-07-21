@@ -84,30 +84,30 @@ path = params_meth[sys.argv[1]]+"processed/3T/"
 
 paths = glob.glob(os.path.join(path, "*", "*registered.nii.gz"))
 
-for patient in paths:
-    id_p = patient.split("/")[-2]
-    print(id_p, n_slices,stepper,n_tot,n_condi)
-    bot1 = info.loc[info["ID"]==id_p,"bot_"+str(d_slice)].iloc[0]
-    top1 = info.loc[info["ID"]==id_p,"top_"+str(d_slice)].iloc[0]
-    mid = (bot1+top1)/2
+if params_meth["infere_mode"]!="True":
+    for patient in paths:
+        id_p = patient.split("/")[-2]
+        print(id_p, n_slices,stepper,n_tot,n_condi)
+        bot1 = info.loc[info["ID"]==id_p,"bot_"+str(d_slice)].iloc[0]
+        top1 = info.loc[info["ID"]==id_p,"top_"+str(d_slice)].iloc[0]
+        mid = (bot1+top1)/2
+        
+        contexts[stepper*n_slices:(stepper+1)*n_slices,0,0] = np.ones(n_slices)*float(info.loc[info["ID"]==id_p,"Age"].iloc[0])
+        contexts[stepper*n_slices:(stepper+1)*n_slices,1,0] = np.ones(n_slices)*float(info.loc[info["ID"]==id_p,"Sex"].iloc[0]=="F")
+    
+        if "cognitive_status_baseline_variable" in info.keys():
+            contexts[stepper*n_slices:(stepper+1)*n_slices,2,0] = np.ones(n_slices)*int((info.loc[info["ID"]==id_p,"cognitive_status_baseline_variable"].iloc[0] in ["SCD","Normal"]))
+        else:
+            contexts[stepper*n_slices:(stepper+1)*n_slices,2,0] = np.ones(n_slices)*0
+    
+        contexts[stepper*n_slices:(stepper+1)*n_slices,3,0] = 2*(np.arange(0,n_slices)-mid)/n_slices
 
-    contexts[stepper*n_slices:(stepper+1)*n_slices,0,0] = np.ones(n_slices)*float(info.loc[info["ID"]==id_p,"Age"].iloc[0])
-    contexts[stepper*n_slices:(stepper+1)*n_slices,1,0] = np.ones(n_slices)*float(info.loc[info["ID"]==id_p,"Sex"].iloc[0]=="F")
+        stepper += 1
+    contexts = contexts.astype(np.float16)
+    print(type(contexts[0,0,0]))
+    np.save(params_meth[sys.argv[1]]+"npy_files/contexts.npy",contexts,allow_pickle=True)
 
-    if "cognitive_status_baseline_variable" in info.keys():
-        contexts[stepper*n_slices:(stepper+1)*n_slices,2,0] = np.ones(n_slices)*int((info.loc[info["ID"]==id_p,"cognitive_status_baseline_variable"].iloc[0] in ["SCD","Normal"]))
-    else:
-        contexts[stepper*n_slices:(stepper+1)*n_slices,2,0] = np.ones(n_slices)*0
-
-    contexts[stepper*n_slices:(stepper+1)*n_slices,3,0] = 2*(np.arange(0,n_slices)-mid)/n_slices
-
-    stepper += 1
-
-contexts = contexts.astype(np.float16)
-print(type(contexts[0,0,0]))
-np.save(params_meth[sys.argv[1]]+"npy_files/contexts.npy",contexts,allow_pickle=True)
-
-del contexts
+    del contexts
 
 
 x = np.zeros((n_tot*(n_slices),n_colors,n_d1,n_d2),dtype=np.float16)
@@ -116,6 +116,8 @@ any_7T = False
 stepper = 0
 print("loading the normalized images")
 for patient in paths:
+    id_p = patient.split("/")[-2]
+
     info_i = info.loc[info["ID"]==id_p]
 
     #Load the image

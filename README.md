@@ -1,16 +1,16 @@
 # UNetSuperResolution
 
-A super-resolution U-Net used to go from 3T to 7T brain MRI.
+A super-resolution U-Net used to go from 3T to 7T brain MRI, from our paper [Converting T1-weighted MRI from 3T to 7T quality using deep learning](https://arxiv.org/abs/2507.13782)
 
 Two example models are included:
 - `my_unet_no_diag.pt` — a plain U-Net
-- `my_unetGanNoDiag.pt` — a U-Net GAN conditioned on participant age and sex
+- `my_unetGanNoDiag.pt` — a U-Net trained using generative adversarial network
 
 ## Settings
 
 Change your paths and parameters in `params.json`. Two examples are included:
-- `params.json` — default example
-- `params_inference.json` — must be renamed to `params.json` to be used for inference
+- `params.json` — training example
+- `params_inference.json` — inference example, must be renamed to `params.json` to be used
 
 Model parameters are set at the top of `func/training/LoadingModel.py`:
 
@@ -20,7 +20,7 @@ Model parameters are set at the top of `func/training/LoadingModel.py`:
 | `train_size` | Number of files used for training (`n_train`). `n_test + n_train` should equal the total number of input 3T images |
 | `slice_dim` | Dimension along which 2D slicing occurs (0, 1, or 2). Default: 1 |
 | `n_neighboors` | Number of input slices, `2k+1` where `k` is an integer. Default: 3 |
-| `d1`, `d2`, `d3` | Input dimensions (256, 256, 256 by default) — should be larger than your largest brain |
+| `d1`, `d2`, `d3` | Input dimensions, e.g. 256, 256, 256 — should be larger than your largest 7T brain |
 | `path_data` | Path to your dataset, e.g. `data/DATASETNAME/` (see [Data](#data)) |
 | `path_patient_info` | Path to your CSV, e.g. `data/DATASETNAME/participants.csv` (see [Data](#data)) |
 | `path_inference_model` | Path to your inference model file, e.g. `models/my_unetGanNoDiag.pt` |
@@ -54,7 +54,7 @@ An example preprocessing pipeline is included. You'll need a virtual environment
 
 Run it via `script/processing_pipeline.sh` and `script/processing_subpipeline.sh`. Some debugging may be needed depending on your setup.
 
-The pipeline includes: skull stripping, bias field correction, a second skull stripping and registration (non-linear for training; to a template for inference).
+The pipeline includes: skull stripping, bias field correction, a second skull stripping and registration (non-linear for training; to a 7T template for inference).
 
 ## Training and inference
 
