@@ -2,9 +2,18 @@
 
 A super-resolution U-Net used to go from 3T to 7T brain MRI, from our paper [Converting T1-weighted MRI from 3T to 7T quality using deep learning](https://arxiv.org/abs/2507.13782)
 
-Two example models are included:
-- `my_unet_no_diag.pt` — a plain U-Net
-- `my_unetGanNoDiag.pt` — a U-Net trained using generative adversarial network
+Two example models are included along their corresponding parameter file:
+- `models/my_unet_no_diag.pt` — a plain U-Net (associated with params_no_diag.txt)
+- `models/my_unetGanNoDiag.pt` — a U-Net trained using generative adversarial network (associated with paramsGanNoDiag.txt)
+
+We also include our 3T and 7T templates, built on 30 subjects and used in the inference pipeline:
+- `models/template_7T.nii.gz` — 7T template
+- `models/template_3T.nii.gz` — 3T template
+- `models/template_3T_reged.nii.gz` — 3T template registered to the 7T template using an Affine transform
+- `models/template_3T_to_7T.mat` — Affine transform used to register the 3T template to the 7T template
+
+They are used in func/processing/registration.py and func/inference/register_to_7T_template.py
+
 
 ## Settings
 

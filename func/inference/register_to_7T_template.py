@@ -21,4 +21,4 @@ def reg(path,path_out,path_ref_t,path_ref_im_3T,path_ref_im_7T):
 
 
 if __name__=="__main__":
-	globals()[sys.argv[1]](sys.argv[2],sys.argv[3],sys.argv[4],sys.argv[5])
+	globals()[sys.argv[1]](sys.argv[2],sys.argv[3],sys.argv[4],sys.argv[5],sys.argv[6])
