@@ -347,4 +347,4 @@ to_seg/test12_full/evaluation_results
 ## Contributor
 
 Ruizhen Shen  
-Multi-view super-resolution extension developed as part of the Master's thesis project.
+Developed the multi-view super-resolution framework for the Master's thesis project, building on the original super-resolution framework developed by Malo Gicquel.
